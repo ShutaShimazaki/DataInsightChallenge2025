@@ -1,5 +1,4 @@
-from preprocess import preprocess_data
-from train_model import train_model
+from preprocess import preprocess_train, preprocess_test, COLUMNS
 import pandas as pd
 import pickle
 
@@ -9,38 +8,38 @@ if __name__ == "__main__":
     test = pd.read_csv(base_folder + "test.csv")
     pd.set_option('display.max_columns', 300)
 
-     # ========= 前処理 =========
-    train, encoders, vectorizers = preprocess_data(train)
-    test, _, _ = preprocess_data(test, encoders=encoders, vectorizers=vectorizers)
+    # ====================
+    # 前処理
+    # ====================
+    print("=== Train 前処理 ===")
+    train, encoders, vectorizers = preprocess_train(train)
 
-    # IDや名前などモデリングに不要な列は除去（※購入フラグは目的変数なので学習時に扱う）
-    drop_cols = ["企業ID", "企業名", "組織図", '企業概要' ,'今後のDX展望','アンケート１','アンケート２','アンケート３','アンケート４','アンケート５','アンケート６','アンケート７','アンケート８','アンケート９','アンケート１０','アンケート１１']
+    print("=== Test 前処理 ===")
+    test = preprocess_test(test, encoders, vectorizers)
+
+    # ====================
+    # 不要列の削除
+    # ====================
+    drop_cols = ["企業ID", "企業名", "組織図"] + COLUMNS["text"] + COLUMNS["survey"]
     train = train.drop(columns=[c for c in drop_cols if c in train.columns])
     test = test.drop(columns=[c for c in drop_cols if c in test.columns])
 
+    print("=== Train info ===")
     print(train.info())
+    print(train.shape)
+    print("=== Test info ===")
     print(test.info())
+    print(train.shape)
 
+    # ====================
+    # 学習・予測部分（コメントアウト）
+    # ====================
+    from train_model import train_model
+    train_model(train)
 
-    # # # 各列の欠損値の数を確認
-    # # missing_counts = train.isna().sum()
-    # # missing_counts = missing_counts[missing_counts > 0].sort_values(ascending=False)
-    # # print("欠損値のある列と件数:")
-    # # print(missing_counts)
-
-    # # ========= 学習 =========
-    # train_model(train)
-
-    # # ========= 予測・提出ファイル作成 =========
-    # # 学習済みモデルを読み込む
-    # with open("model.pkl", "rb") as f:
-    #     model = pickle.load(f)
-
-    # # testデータで予測
-    # test_preds = model.predict(test)
-
-    # # 提出ファイルの作成
-    # sample_submit = pd.read_csv(base_folder + "sample_submit.csv", header=None)
-    # sample_submit.iloc[:, 1] = test_preds
-    # sample_submit.to_csv(base_folder + "submission.csv", index=False, header=None)
-    # print("提出ファイルを作成しました: submission.csv")
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
+        test_preds = model.predict(test)
+        sample_submit = pd.read_csv(base_folder + "sample_submit.csv", header=None)
+        sample_submit.iloc[:, 1] = test_preds
+        sample_submit.to_csv(base_folder + "submission.csv", index=False, header=None)
