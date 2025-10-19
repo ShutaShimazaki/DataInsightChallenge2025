@@ -120,7 +120,13 @@ BtoC           66
 - join!!
 - 一通り完成させたものの、スコア0.51
 - エラー：[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
-- 
+- 原因１：クラスの不均衡
+  - 0（未購入）:563, 1（購入）:179
+  - 正例が少なく、負例（未購入）が多い
+  - 対策：パラメータに is_unbalance=True または
+  - 対策：scale_pos_weight = 563 / 179 ≈ 3.15 を設定。
+- 原因２：特徴量が多すぎる
+  - 上位20〜30個の重要な特徴量に絞ると分岐が作りやすくなる。（もっと少なくても良いかも）
 
 ### 2025
 

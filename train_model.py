@@ -1,15 +1,17 @@
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
+import japanize_matplotlib
 from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
-from lightgbm import LGBMClassifier
+import lightgbm as lgb
 
 def train_model(train_df):
     target_col = "購入フラグ"
     y = train_df[target_col]
     X = train_df.drop(columns=[target_col])
 
-    model = LGBMClassifier(random_state=42)
+    model = lgb.LGBMClassifier(random_state=42, class_weight='balanced', verbose=-1)
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     f1_scores = []
 
@@ -30,6 +32,10 @@ def train_model(train_df):
     model.fit(X, y)
     with open("model.pkl", "wb") as f:
         pickle.dump(model, f)
-
     print("モデル保存完了: model.pkl")
     
+    # 特徴量重要度の出力
+    plt.figure(figsize=(10,6))
+    lgb.plot_importance(model, max_num_features=10, importance_type='gain')
+    plt.title("Top 10 Feature Importance")
+    plt.savefig("./Feature Importance.png")

@@ -87,7 +87,7 @@ def add_tfidf_features(df: pd.DataFrame, vectorizers=None):
                 tfidf = vectorizers[col]
                 tfidf_matrix = tfidf.transform(df[col])
             else:
-                tfidf = TfidfVectorizer(max_features=20, tokenizer=tokenize_ja, ngram_range=(1,2), min_df=2)
+                tfidf = TfidfVectorizer(max_features=10, tokenizer=tokenize_ja, ngram_range=(1,2), min_df=2)
                 tfidf_matrix = tfidf.fit_transform(df[col])
                 vectorizers[col] = tfidf
 
