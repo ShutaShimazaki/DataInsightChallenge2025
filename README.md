@@ -82,8 +82,24 @@ Submission.csv: (800, 2)
 | 1541   | 0                                |
 
 ## データ分析
+### 分析結果と前処理
+- 「業界」ごとに購入傾向が異なる
+- 「取引形態」が"BtoB, BtoC, CtoC", "CtoC"となっているのはTrain.csvに各1件のため、除外
 ### 「業界」と「平均購入確率」
 <img width="1189" height="691" alt="image" src="https://github.com/user-attachments/assets/07334efb-5a3f-4dd8-8286-15df7b219acb" />
+
+### 「取引形態」
+#### 取引形態（Train.csv）
+BtoB                441
+BtoB, BtoC          220
+BtoC                 77
+BtoB, BtoC, CtoC      1
+CtoC                  1
+
+#### 取引形態（Test.csv）
+BtoB          474
+BtoB, BtoC    257
+BtoC           66
 
 ## Pipeline
 - 実行例
