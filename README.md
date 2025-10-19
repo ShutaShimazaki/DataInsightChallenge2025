@@ -81,6 +81,10 @@ Submission.csv: (800, 2)
 | 1540   | 1                                |
 | 1541   | 0                                |
 
+## データ分析
+### 「業界」と「平均購入確率」
+<img width="1189" height="691" alt="image" src="https://github.com/user-attachments/assets/07334efb-5a3f-4dd8-8286-15df7b219acb" />
+
 ## Pipeline
 - 実行例
   ```bash
@@ -95,6 +99,8 @@ Submission.csv: (800, 2)
 ## Log
 ### 20251019
 - join!!
+- 一通り完成させたものの、スコア0.51
+- エラー：[LightGBM] [Warning] No further splits with positive gain, best gain: -inf
 - 
 
 ### 2025
