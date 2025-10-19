@@ -1,14 +1,16 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from janome.tokenizer import Tokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, MultiLabelBinarizer
 
 # ------------------------------
 # 列の種類定義（柔軟に修正可能）
 # ------------------------------
 COLUMNS = {
-    "categorical": ['業界', '上場種別', '取引形態', '特徴'],
-    "text": ['企業概要','組織図','今後のDX展望'],
+    "categorical": ['業界', '上場種別', '取引形態'],
+    "text": ['企業概要','今後のDX展望'],
     "survey": ['アンケート１','アンケート２','アンケート３','アンケート４','アンケート５','アンケート６','アンケート７','アンケート８','アンケート９','アンケート１０','アンケート１１'],
     "numeric": ['従業員数','事業所数','工場数','店舗数','資本金','総資産','流動資産',
                 '固定資産','負債','短期借入金','長期借入金','純資産','自己資本',
@@ -48,11 +50,31 @@ def encode_categories(df: pd.DataFrame, categorical_cols=None, encoders=None):
     if categorical_cols is None:
         categorical_cols = COLUMNS["categorical"]
 
-    for col in categorical_cols:
-        if col in df.columns:
-            le = encoders.get(col, LabelEncoder())
-            df[col] = le.fit_transform(df[col])
-            encoders[col] = le
+    # --- 業界 (名義尺度 → One-Hot) ---
+    if "業界" in categorical_cols and "業界" in df.columns:
+        ohe = encoders.get("業界", OneHotEncoder(sparse_output=False, handle_unknown="ignore"))
+        transformed = ohe.fit_transform(df[["業界"]])
+        ohe_cols = [f"業界_{cat}" for cat in ohe.categories_[0]]
+        df_ohe = pd.DataFrame(transformed, columns=ohe_cols, index=df.index)
+        df = pd.concat([df.drop(columns=["業界"]), df_ohe], axis=1)
+        encoders["業界"] = ohe
+
+    # --- 上場種別 (順序尺度 → Ordinal) ---
+    if "上場種別" in categorical_cols and "上場種別" in df.columns:
+        # PR < ST < GR の順序を仮定
+        order = [["PR", "ST", "GR"]]
+        oe = encoders.get("上場種別", OrdinalEncoder(categories=order))
+        df["上場種別"] = oe.fit_transform(df[["上場種別"]])
+        encoders["上場種別"] = oe
+
+    # --- 取引形態 (名義尺度、複数ラベル → MultiLabelBinarizer) ---
+    if "取引形態" in categorical_cols and "取引形態" in df.columns:
+        mlb = encoders.get("取引形態", MultiLabelBinarizer())
+        transformed = mlb.fit_transform(df["取引形態"].fillna("").str.split(", "))
+        mlb_cols = [f"取引形態_{cls}" for cls in mlb.classes_]
+        df_mlb = pd.DataFrame(transformed, columns=mlb_cols, index=df.index)
+        df = pd.concat([df.drop(columns=["取引形態"]), df_mlb], axis=1)
+        encoders["取引形態"] = mlb
 
     return df, encoders
 
@@ -60,21 +82,44 @@ def encode_categories(df: pd.DataFrame, categorical_cols=None, encoders=None):
 # ---------------------------------------
 # TF-IDF特徴量
 # ---------------------------------------
-def add_tfidf_features(df: pd.DataFrame, tfidf_cols=None, max_features=100, vectorizers=None):
+# Janomeトークナイザー（日本語用）
+tokenizer = Tokenizer()
+
+def tokenize_ja(text):
+    """日本語テキストを分かち書きする関数"""
+    return " ".join(token.surface for token in tokenizer.tokenize(text))
+
+def add_tfidf_features(df: pd.DataFrame, tfidf_cols=None, max_features=20, vectorizers=None):
+    """
+    日本語対応TF-IDF特徴量生成
+    """
     if vectorizers is None:
         vectorizers = {}
     if tfidf_cols is None:
-        tfidf_cols = COLUMNS["text"]
+        tfidf_cols = COLUMNS["text"]  # あなたのコードに合わせて使用
 
     for col in tfidf_cols:
         if col in df.columns:
-            df[col] = df[col].astype(str)
-            tfidf = vectorizers.get(col, TfidfVectorizer(max_features=max_features))
-            tfidf_matrix = tfidf.fit_transform(df[col])
+            df[col] = df[col].fillna("").astype(str)
+
+            # 既存のベクトライザがあれば再利用、なければ初期化
+            if col in vectorizers:
+                tfidf = vectorizers[col]
+                tfidf_matrix = tfidf.transform(df[col])
+            else:
+                tfidf = TfidfVectorizer(
+                    max_features=max_features,
+                    tokenizer=tokenize_ja,  # ✅日本語対応
+                    ngram_range=(1, 2),     # ✅精度改善（ユニグラム＋バイグラム）
+                    min_df=2                # ✅ノイズ抑制
+                )
+                tfidf_matrix = tfidf.fit_transform(df[col])
+                vectorizers[col] = tfidf
+
+            # データフレームに結合
             tfidf_df = pd.DataFrame(tfidf_matrix.toarray(),
                                     columns=[f"{col}_tfidf_{i}" for i in range(tfidf_matrix.shape[1])])
             df = pd.concat([df.reset_index(drop=True), tfidf_df], axis=1)
-            vectorizers[col] = tfidf
 
     return df, vectorizers
 
@@ -107,17 +152,33 @@ def add_dx_awareness_score(df: pd.DataFrame):
 
 
 # ---------------------------------------
-# 前処理まとめ関数
+# 前処理
 # ---------------------------------------
 def preprocess_data(df: pd.DataFrame,
                     categorical_cols=None,
                     tfidf_cols=None,
                     encoders=None,
                     vectorizers=None):
-    df = handle_missing_values(df)
+    
+    # ========= 不要データの削除 =========
+    # 取引形態が "BtoB, BtoC, CtoC" または "CtoC" の行を削除
+    if "取引形態" in df.columns:
+        remove_patterns = ["BtoB, BtoC, CtoC", "CtoC"]
+        df = df[~df["取引形態"].isin(remove_patterns)].reset_index(drop=True)
+
+    # ========= 欠損値=========
+    df = handle_missing_values(df) 
+
+    # ========= カテゴリ変数の数値化 =========
     df, encoders = encode_categories(df, categorical_cols, encoders)
+
+    # ========= テキストデータの数値化（tfidf） =========
     df, vectorizers = add_tfidf_features(df, tfidf_cols, vectorizers=vectorizers)
+
+    # ========= 新規特徴量の設計 =========
     df = add_numeric_features(df)
+
+    # ========= 新規特徴量の設計(DX意識スコア) =========
     df = add_dx_awareness_score(df)
 
     return df, encoders, vectorizers
