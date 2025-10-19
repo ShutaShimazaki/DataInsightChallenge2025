@@ -84,7 +84,10 @@ Submission.csv: (800, 2)
 ## データ分析
 ### 分析結果と前処理
 - 「業界」ごとに購入傾向が異なる
-- 「取引形態」が"BtoB, BtoC, CtoC", "CtoC"となっているのはTrain.csvに各1件のため、除外
+- 　"専門サービス"と"その他"業界の２データをTrain.csvから除外
+  - len(train['業界'].unique())　-> 31
+  - len(test['業界'].unique()) -> 29 (**'専門サービス'と'その他'はTestには存在しない**)
+- 「取引形態」が"BtoB, BtoC, CtoC", "CtoC"となっているのはTrain.csvに各1件のため除外
 ### 「業界」と「平均購入確率」
 <img width="1189" height="691" alt="image" src="https://github.com/user-attachments/assets/07334efb-5a3f-4dd8-8286-15df7b219acb" />
 
