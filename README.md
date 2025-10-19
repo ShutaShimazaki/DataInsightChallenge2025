@@ -1,4 +1,5 @@
-[参考記事：Kaggle日記という戦い方(fkubotaさん)](https://zenn.dev/fkubota/articles/3d8afb0e919b555ef068)
+[参考記事：Kaggle日記という戦い方(fkubotaさん)](https://zenn.dev/fkubota/articles/3d8afb0e919b555ef068) 
+
 [Github(fkubotaさん)](https://github.com/fkubota/kaggle-Cornell-Birdcall-Identification)
 
 # 製造業対抗データインサイトチャレンジ2025
