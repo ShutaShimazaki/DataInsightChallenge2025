@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, MultiLabelBinarizer
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, MultiLabelBinarizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from janome.tokenizer import Tokenizer
 
@@ -42,30 +42,53 @@ def encode_categories(df: pd.DataFrame, encoders=None):
     if encoders is None:
         encoders = {}
 
-    # --- 業界 (One-Hot) ---
+    # --- 業界 (Label Encodingに変更) ---
+    
+    # if "業界" in df.columns:
+    #     le = encoders.get("業界", LabelEncoder())
+    #     try:
+    #         df["業界"] = le.transform(df["業界"])
+    #     except:
+    #         df["業界"] = le.fit_transform(df["業界"])
+    #     encoders["業界"] = le
+    
     if "業界" in df.columns:
-        ohe = encoders.get("業界", OneHotEncoder(sparse_output=False, handle_unknown="ignore"))
-        df_ohe = pd.DataFrame(ohe.fit_transform(df[["業界"]]),
-                              columns=[f"業界_{cat}" for cat in ohe.categories_[0]],
-                              index=df.index)
-        df = pd.concat([df.drop(columns=["業界"]), df_ohe], axis=1)
-        encoders["業界"] = ohe
+        if "業界" not in encoders:
+            # 学習時: 業界ごとの購入確率を計算して降順に並べる
+            industry_target_mean = df.groupby("業界")["購入フラグ"].mean().sort_values(ascending=False)
+            industry_rank = {industry: rank for rank, industry in enumerate(industry_target_mean.index)}
+            encoders["業界"] = industry_rank
+        else:
+            industry_rank = encoders["業界"]
 
-    # --- 上場種別 (Ordinal) ---
+        # 未知カテゴリ対策
+        df["業界"] = df["業界"].map(industry_rank).fillna(-1).astype(int)
+
+        print("▼ 業界のラベルエンコード結果（上位10件）")
+        print(df[["業界"]])
+
+    # --- 上場種別 (Ordinal Encoding) ---
     if "上場種別" in df.columns:
-        oe = encoders.get("上場種別", OrdinalEncoder(categories=[["PR", "ST", "GR"]]))
-        df["上場種別"] = oe.fit_transform(df[["上場種別"]])
+        oe = encoders.get("上場種別", OrdinalEncoder(categories=[["PR", "ST", "GR", "Unknown"]]))
+        try:
+            df["上場種別"] = oe.transform(df[["上場種別"]])
+        except:
+            df["上場種別"] = oe.fit_transform(df[["上場種別"]])
         encoders["上場種別"] = oe
 
     # --- 取引形態 (MultiLabelBinarizer) ---
     if "取引形態" in df.columns:
         mlb = encoders.get("取引形態", MultiLabelBinarizer())
-        transformed = mlb.fit_transform(df["取引形態"].str.split(", "))
+        try:
+            transformed = mlb.transform(df["取引形態"].str.split(", "))
+        except:
+            transformed = mlb.fit_transform(df["取引形態"].str.split(", "))
         df_mlb = pd.DataFrame(transformed, columns=[f"取引形態_{cls}" for cls in mlb.classes_], index=df.index)
         df = pd.concat([df.drop(columns=["取引形態"]), df_mlb], axis=1)
         encoders["取引形態"] = mlb
 
     return df, encoders
+
 
 # ---------------------------------------
 # TF-IDF特徴量
@@ -87,7 +110,7 @@ def add_tfidf_features(df: pd.DataFrame, vectorizers=None):
                 tfidf = vectorizers[col]
                 tfidf_matrix = tfidf.transform(df[col])
             else:
-                tfidf = TfidfVectorizer(max_features=10, tokenizer=tokenize_ja, ngram_range=(1,2), min_df=2)
+                tfidf = TfidfVectorizer(max_features=30, tokenizer=tokenize_ja, ngram_range=(1,2), min_df=2)
                 tfidf_matrix = tfidf.fit_transform(df[col])
                 vectorizers[col] = tfidf
 
@@ -140,16 +163,18 @@ def preprocess_train(df: pd.DataFrame):
 
     df = handle_missing_values(df)
     df, encoders = encode_categories(df)
-    df, vectorizers = add_tfidf_features(df)
+    #df, vectorizers = add_tfidf_features(df)
     df = add_numeric_features(df)
     df = add_dx_awareness_score(df)
-    return df, encoders, vectorizers
+    # return df, encoders, vectorizers
+    return df, encoders
 
-def preprocess_test(df: pd.DataFrame, encoders, vectorizers):
+# def preprocess_test(df: pd.DataFrame, encoders, vectorizers):
+def preprocess_test(df: pd.DataFrame, encoders):
     """test専用前処理（trainで学習したencoder/vectorizerを使用）"""
     df = handle_missing_values(df)
     df, _ = encode_categories(df, encoders=encoders)
-    df, _ = add_tfidf_features(df, vectorizers=vectorizers)
+    #df, _ = add_tfidf_features(df, vectorizers=vectorizers)
     df = add_numeric_features(df)
     df = add_dx_awareness_score(df)
     return df

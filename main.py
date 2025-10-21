@@ -12,16 +12,20 @@ if __name__ == "__main__":
     # 前処理
     # ====================
     print("=== Train 前処理 ===")
-    train, encoders, vectorizers = preprocess_train(train)
+    # train, encoders, vectorizers = preprocess_train(train)
+    train, encoders = preprocess_train(train)
 
     print("=== Test 前処理 ===")
-    test = preprocess_test(test, encoders, vectorizers)
+    #test = preprocess_test(test, encoders, vectorizers)
+    test = preprocess_test(test, encoders)
 
     # ====================
     # 不要列の削除
     # ====================
+    #drop_cols = (["企業ID", "企業名", "組織図"] + COLUMNS["text"] + COLUMNS["survey"] 
+    #+ ['資本金','総資産','流動資産','固定資産','負債','短期借入金','長期借入金','純資産','自己資本','売上','営業利益','経常利益','当期純利益','営業CF','減価償却費','運転資本変動','投資CF','有形固定資産変動','無形固定資産変動(ソフトウェア関連)'])
     drop_cols = (["企業ID", "企業名", "組織図"] + COLUMNS["text"] + COLUMNS["survey"] 
-    + ['資本金','総資産','流動資産','固定資産','負債','短期借入金','長期借入金','純資産','自己資本','売上','営業利益','経常利益','当期純利益','営業CF','減価償却費','運転資本変動','投資CF','有形固定資産変動','無形固定資産変動(ソフトウェア関連)'])
+    + ['負債','純資産','自己資本','売上','営業利益','経常利益','当期純利益','営業CF','投資CF'])
     train = train.drop(columns=[c for c in drop_cols if c in train.columns])
     test = test.drop(columns=[c for c in drop_cols if c in test.columns])
 
