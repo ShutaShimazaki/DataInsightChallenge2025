@@ -2,6 +2,8 @@
 
 [Github(fkubotaさん)](https://github.com/fkubota/kaggle-Cornell-Birdcall-Identification)
 
+[G検定模試](https://public.learningbox.online/index.php?action=quizPlayer&options=eyJzY29faWQiOjQyMDE3NDEsImNhbGwiOiJleHRlcm5hbCIsImhlYWRlciI6eyJzbnMiOnsidmlzaWJsZSI6dHJ1ZX0sInZpb2xhdGlvblJlcG9ydCI6eyJ2aXNpYmxlIjp0cnVlfSwiZ29vZCI6eyJ2aXNpYmxlIjp0cnVlfSwicGFnZXIiOnsidmlzaWJsZSI6ZmFsc2V9fX0%3D&cate=1)
+
 # 製造業対抗データインサイトチャレンジ2025
 - result
   - public: 
